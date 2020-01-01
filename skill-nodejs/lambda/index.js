@@ -52,7 +52,7 @@ const LaunchRequestHandler = {
         const token = handlerInput.requestEnvelope.request.requestId;
         Util.putSessionAttribute(handlerInput, 'token', token);
 
-        let speechOutput = "Welcome, voice interface activated";
+        let speechOutput = "Welcome, would you like to play a game?";
         return handlerInput.responseBuilder
             .speak(speechOutput + BG_MUSIC)
             .addDirective(Util.buildStartEventHandler(token,60000, {}))

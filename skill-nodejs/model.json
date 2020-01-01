@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "mindstorms",
+      "invocationName": "tag you're it",
       "intents": [
         {
           "name": "AMAZON.CancelIntent",
@@ -133,7 +133,7 @@
           "values": [
             {
               "name": {
-                "value": "sentry"
+                "value": "tag you're it"
               }
             },
             {
@@ -148,22 +148,7 @@
             },
             {
               "name": {
-                "value": "patrol"
-              }
-            },
-            {
-              "name": {
-                "value": "cannon"
-              }
-            },
-            {
-              "name": {
-                "value": "all shot"
-              }
-            },
-            {
-              "name": {
-                "value": "one shot"
+                "value": "tag i'm it"
               }
             }
           ]

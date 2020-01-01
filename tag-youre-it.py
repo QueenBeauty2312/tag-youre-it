@@ -1,12 +1,7 @@
-# Copyright 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
-# 
-# You may not use this file except in compliance with the terms and conditions 
-# set forth in the accompanying LICENSE.TXT file.
-#
-# THESE MATERIALS ARE PROVIDED ON AN "AS IS" BASIS. AMAZON SPECIFICALLY DISCLAIMS, WITH 
-# RESPECT TO THESE MATERIALS, ALL WARRANTIES, EXPRESS, IMPLIED, OR STATUTORY, INCLUDING 
-# THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+# Based on Amazon tutorial
 
+# import os
+# import sys
 import time
 import logging
 import json
@@ -18,12 +13,37 @@ from agt import AlexaGadget
 
 from ev3dev2.led import Leds
 from ev3dev2.sound import Sound
-from ev3dev2.motor import OUTPUT_A, OUTPUT_B, OUTPUT_C, MoveTank, SpeedPercent, MediumMotor
-from ev3dev2.sensor.lego import InfraredSensor
+from ev3dev2.motor import OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D, MoveTank, SpeedPercent, MediumMotor
+from ev3dev2.sensor.lego import UltrasonicSensor, TouchSensor, InfraredSensor
+
+from time import sleep
 
 # Set the logging level to INFO to see messages from AlexaGadget
 logging.basicConfig(level=logging.INFO)
 
+### Testing the sensors
+# Connect infrared and touch sensors to any sensor ports
+ir = InfraredSensor() 
+ts = TouchSensor()
+us = UltrasonicSensor()
+leds = Leds()
+
+leds.all_off() # stop the LEDs flashing (as well as turn them off)
+# # is_pressed and proximity are not functions and do not need parentheses
+# while not ts.is_pressed:  # Stop program by pressing the touch sensor button
+#     print("Ultrasonic " + str(us.distance_centimeters))
+#     print("Infrared " + str(ir.proximity))
+#     if us.distance_centimeters < 40*1.4: # to detect objects closer than about 40cm
+#         leds.set_color('LEFT',  'RED')
+#         leds.set_color('RIGHT', 'RED')
+#     else:
+#         leds.set_color('LEFT',  'GREEN')
+#         leds.set_color('RIGHT', 'GREEN')
+#         self.drive.on_for_seconds(SpeedPercent(50), SpeedPercent(50), 2, block=is_blocking)
+
+
+#     sleep (0.01) # Give the CPU a rest
+# ###
 
 class Direction(Enum):
     """
@@ -44,17 +64,14 @@ class Command(Enum):
     """
     MOVE_CIRCLE = ['circle', 'move around']
     MOVE_SQUARE = ['square']
-    SENTRY = ['guard', 'guard mode', 'sentry', 'sentry mode']
-    PATROL = ['patrol', 'patrol mode']
-    FIRE_ONE = ['cannon', '1 shot', 'one shot']
-    FIRE_ALL = ['all shots', 'all shot']
+    TAG_YOURE_IT = ['tag you\'re it', 'tag you are it']
+    TAG_IM_IT = ['tag i\'m it', 'tag i am it']
 
 
 class EventName(Enum):
     """
     The list of custom event name sent from this gadget
     """
-    SENTRY = "Sentry"
     PROXIMITY = "Proximity"
     SPEECH = "Speech"
 
@@ -71,19 +88,19 @@ class MindstormsGadget(AlexaGadget):
         super().__init__()
 
         # Robot state
-        self.sentry_mode = False
-        self.patrol_mode = False
+        self.tag_youre_it_mode = False
+        self.tag_im_it_mode = False
 
-        # Connect two large motors on output ports B and C
-        self.drive = MoveTank(OUTPUT_B, OUTPUT_C)
-        self.weapon = MediumMotor(OUTPUT_A)
+        # Connect two large motors on output ports A and D
+        self.drive = MoveTank(OUTPUT_A, OUTPUT_D)
         self.sound = Sound()
         self.leds = Leds()
         self.ir = InfraredSensor()
+        self.us = UltrasonicSensor()
 
         # Start threads
-        threading.Thread(target=self._patrol_thread, daemon=True).start()
-        threading.Thread(target=self._proximity_thread, daemon=True).start()
+        threading.Thread(target=self._youre_it_thread, daemon=True).start()
+        threading.Thread(target=self._im_it_thread, daemon=True).start()
 
     def on_connected(self, device_addr):
         """
@@ -162,13 +179,14 @@ class MindstormsGadget(AlexaGadget):
             for i in range(4):
                 self._move("right", 2, speed, is_blocking=True)
 
-        if command in Command.PATROL.value:
-            # Set patrol mode to resume patrol thread processing
-            self.patrol_mode = True
+        if command in Command.TAG_YOURE_IT.value:
+            # Set tag you're it mode to resume tag_youre_it thread processing
+            self.tag_youre_it_mode = True
+            self._send_event(EventName.SPEECH, {'speechOut': "Oh no. I am it! Here I come!"})
 
-        if command in Command.SENTRY.value:
-            self.sentry_mode = True
-            self._send_event(EventName.SPEECH, {'speechOut': "Sentry mode activated"})
+        if command in Command.TAG_IM_IT.value:
+            self.tag_im_it__mode = True
+            self._send_event(EventName.SPEECH, {'speechOut': "Yikes! You are it! I am out of here!"})
 
             # Perform Shuffle posture
             self.drive.on_for_seconds(SpeedPercent(80), SpeedPercent(-80), 0.2)
@@ -177,24 +195,6 @@ class MindstormsGadget(AlexaGadget):
 
             self.leds.set_color("LEFT", "YELLOW", 1)
             self.leds.set_color("RIGHT", "YELLOW", 1)
-
-        if command in Command.FIRE_ONE.value:
-            print("Fire one")
-            self.weapon.on_for_rotations(SpeedPercent(100), 3)
-            self._send_event(EventName.SENTRY, {'fire': 1})
-            self.sentry_mode = False
-            print("Sent sentry event - 1 shot, alarm reset")
-            self.leds.set_color("LEFT", "GREEN", 1)
-            self.leds.set_color("RIGHT", "GREEN", 1)
-
-        if command in Command.FIRE_ALL.value:
-            print("Fire all")
-            self.weapon.on_for_rotations(SpeedPercent(100), 10)
-            self._send_event(EventName.SENTRY, {'fire': 3})
-            self.sentry_mode = False
-            print("sent sentry event - 3 shots, alarm reset")
-            self.leds.set_color("LEFT", "GREEN", 1)
-            self.leds.set_color("RIGHT", "GREEN", 1)
 
     def _turn(self, direction, speed):
         """
@@ -211,22 +211,24 @@ class MindstormsGadget(AlexaGadget):
 
     def _send_event(self, name: EventName, payload):
         """
-        Sends a custom event to trigger a sentry action.
+        Sends a custom event to trigger an action.
         :param name: the name of the custom event
-        :param payload: the sentry JSON payload
+        :param payload: the JSON payload
         """
         self.send_custom_event('Custom.Mindstorms.Gadget', name.value, payload)
 
-    def _proximity_thread(self):
+    def _im_it_thread(self):
         """
-        Monitors the distance between the robot and an obstacle when sentry mode is activated.
-        If the minimum distance is breached, send a custom event to trigger action on
+        The robot is it. Seek after the IR beacon.
+        If the minimum distance is breached, send a custom event to trigger tag action on
         the Alexa skill.
         """
         count = 0
         while True:
-            while self.sentry_mode:
-                distance = self.ir.proximity
+            while self.tag_im_it_mode:
+                # Chase after person. 
+                self.drive.on_for_seconds(SpeedPercent(50), SpeedPercent(50), 2, block=is_blocking)
+                distance = self.us.proximity
                 print("Proximity: {}".format(distance))
                 count = count + 1 if distance < 10 else 0
                 if count > 3:
@@ -234,19 +236,21 @@ class MindstormsGadget(AlexaGadget):
                     self.leds.set_color("LEFT", "RED", 1)
                     self.leds.set_color("RIGHT", "RED", 1)
 
+                    self._send_event(EventName.SPEECH, {'speechOut': "Tag you are it!"})
+
                     self._send_event(EventName.PROXIMITY, {'distance': distance})
-                    self.sentry_mode = False
+                    self.tag_im_it_mode = False
 
                 time.sleep(0.2)
             time.sleep(1)
 
-    def _patrol_thread(self):
+    def _youre_it_thread(self):
         """
-        Performs random movement when patrol mode is activated.
+        Performs random movement when you're it mode is activated.
         """
         while True:
-            while self.patrol_mode:
-                print("Patrol mode activated randomly picks a path")
+            while self.tag_youre_it_mode:
+                print("Tag You're it mode activated randomly picking a path")
                 direction = random.choice(list(Direction))
                 duration = random.randint(1, 5)
                 speed = random.randint(1, 4) * 25
