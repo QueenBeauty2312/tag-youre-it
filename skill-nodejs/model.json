@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "tag you're it",
+      "invocationName": "mind storms",
       "intents": [
         {
           "name": "AMAZON.CancelIntent",
@@ -149,6 +149,11 @@
             {
               "name": {
                 "value": "tag i'm it"
+              }
+            },
+            {
+              "name": {
+                "value": "i'm it"
               }
             }
           ]

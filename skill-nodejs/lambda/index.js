@@ -52,7 +52,7 @@ const LaunchRequestHandler = {
         const token = handlerInput.requestEnvelope.request.requestId;
         Util.putSessionAttribute(handlerInput, 'token', token);
 
-        let speechOutput = "Welcome, would you like to play a game?";
+        let speechOutput = "Welcome, would you like to play a game of tag?";
         return handlerInput.responseBuilder
             .speak(speechOutput + BG_MUSIC)
             .addDirective(Util.buildStartEventHandler(token,60000, {}))
@@ -193,13 +193,13 @@ const EventsReceivedRequestHandler = {
         let speechOutput;
         if (name === 'Proximity') {
             let distance = parseInt(payload.distance);
-            if (distance < 10) {
-                let speechOutput = "Intruder detected! What would you like to do?";
-                return handlerInput.responseBuilder
-                    .speak(speechOutput, "REPLACE_ALL")
-                    .withShouldEndSession(false)
-                    .getResponse();
-            }
+            // if (distance < 10) {
+            speechOutput = "Tag you are it!";
+                // return handlerInput.responseBuilder
+                //     .speak(speechOutput, "REPLACE_ALL")
+                //     .withShouldEndSession(false)
+                //     .getResponse();
+            // }
         } else if (name === 'Sentry') {
             if ('fire' in payload) {
                 speechOutput = "Threat eliminated";

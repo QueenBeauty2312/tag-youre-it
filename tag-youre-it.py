@@ -23,12 +23,12 @@ logging.basicConfig(level=logging.INFO)
 
 ### Testing the sensors
 # Connect infrared and touch sensors to any sensor ports
-ir = InfraredSensor() 
-ts = TouchSensor()
-us = UltrasonicSensor()
-leds = Leds()
+# ir = InfraredSensor() 
+# ts = TouchSensor()
+# us = UltrasonicSensor()
+# leds = Leds()
 
-leds.all_off() # stop the LEDs flashing (as well as turn them off)
+# leds.all_off() # stop the LEDs flashing (as well as turn them off)
 # # is_pressed and proximity are not functions and do not need parentheses
 # while not ts.is_pressed:  # Stop program by pressing the touch sensor button
 #     print("Ultrasonic " + str(us.distance_centimeters))
@@ -64,8 +64,8 @@ class Command(Enum):
     """
     MOVE_CIRCLE = ['circle', 'move around']
     MOVE_SQUARE = ['square']
-    TAG_YOURE_IT = ['tag you\'re it', 'tag you are it']
-    TAG_IM_IT = ['tag i\'m it', 'tag i am it']
+    TAG_YOURE_IT = ['tag you\'re it', 'tag you are it', 'your it', 'you are it', 'you\re it']
+    TAG_IM_IT = ['tag i\'m it', 'tag i am it', 'i am it', 'i\'m it', 'here i come', 'tag I\'m it', 'I\'m it', 'I it', 'I am going to get you']
 
 
 class EventName(Enum):
@@ -97,6 +97,7 @@ class MindstormsGadget(AlexaGadget):
         self.leds = Leds()
         self.ir = InfraredSensor()
         self.us = UltrasonicSensor()
+        self.ts = TouchSensor()
 
         # Start threads
         threading.Thread(target=self._youre_it_thread, daemon=True).start()
@@ -182,16 +183,18 @@ class MindstormsGadget(AlexaGadget):
         if command in Command.TAG_YOURE_IT.value:
             # Set tag you're it mode to resume tag_youre_it thread processing
             self.tag_youre_it_mode = True
+            print('Command is active for Tag You\re it.')
             self._send_event(EventName.SPEECH, {'speechOut': "Oh no. I am it! Here I come!"})
+            time.sleep(0.3)
 
         if command in Command.TAG_IM_IT.value:
             self.tag_im_it__mode = True
             self._send_event(EventName.SPEECH, {'speechOut': "Yikes! You are it! I am out of here!"})
 
-            # Perform Shuffle posture
-            self.drive.on_for_seconds(SpeedPercent(80), SpeedPercent(-80), 0.2)
-            time.sleep(0.3)
-            self.drive.on_for_seconds(SpeedPercent(-40), SpeedPercent(40), 0.2)
+            # Perform Run away
+            self.drive.on_for_seconds(SpeedPercent(80), SpeedPercent(-80), 2)
+            # time.sleep(0.3)
+            self.drive.on_for_seconds(SpeedPercent(-50), SpeedPercent(-50), 4)
 
             self.leds.set_color("LEFT", "YELLOW", 1)
             self.leds.set_color("RIGHT", "YELLOW", 1)
@@ -219,37 +222,11 @@ class MindstormsGadget(AlexaGadget):
 
     def _im_it_thread(self):
         """
-        The robot is it. Seek after the IR beacon.
-        If the minimum distance is breached, send a custom event to trigger tag action on
-        the Alexa skill.
+        The human is it. Robot runs away.
         """
         count = 0
         while True:
             while self.tag_im_it_mode:
-                # Chase after person. 
-                self.drive.on_for_seconds(SpeedPercent(50), SpeedPercent(50), 2, block=is_blocking)
-                distance = self.us.proximity
-                print("Proximity: {}".format(distance))
-                count = count + 1 if distance < 10 else 0
-                if count > 3:
-                    print("Proximity breached. Sending event to skill")
-                    self.leds.set_color("LEFT", "RED", 1)
-                    self.leds.set_color("RIGHT", "RED", 1)
-
-                    self._send_event(EventName.SPEECH, {'speechOut': "Tag you are it!"})
-
-                    self._send_event(EventName.PROXIMITY, {'distance': distance})
-                    self.tag_im_it_mode = False
-
-                time.sleep(0.2)
-            time.sleep(1)
-
-    def _youre_it_thread(self):
-        """
-        Performs random movement when you're it mode is activated.
-        """
-        while True:
-            while self.tag_youre_it_mode:
                 print("Tag You're it mode activated randomly picking a path")
                 direction = random.choice(list(Direction))
                 duration = random.randint(1, 5)
@@ -263,6 +240,30 @@ class MindstormsGadget(AlexaGadget):
                 time.sleep(duration)
             time.sleep(1)
 
+    def _youre_it_thread(self):
+        """
+        Chase after the player.
+        """
+        while True:
+            while self.tag_youre_it_mode:
+            # Chase after person. 
+                self.drive.on_for_seconds(SpeedPercent(-50), SpeedPercent(-50), 2, False)
+                distance = self.us.distance_centimeters
+                print("Proximity: {}".format(distance))
+                count = count + 1 if distance < 10 else 0
+                if distance < 25:
+                    print("Close enough to tag you breached. Sending proximity event to skill")
+                    self.leds.set_color("LEFT", "RED", 1)
+                    self.leds.set_color("RIGHT", "RED", 1)
+
+                    self._send_event(EventName.SPEECH, {'speechOut': "Tag you are it!"})
+
+                    self._send_event(EventName.PROXIMITY, {'distance': distance})
+                    self.tag_youre_it_mode = False
+                    self.tag_iam_it_mode = True
+
+                time.sleep(0.2)
+            time.sleep(1)
 
 if __name__ == '__main__':
     # Startup sequence
